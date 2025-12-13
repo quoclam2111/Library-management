@@ -7,6 +7,7 @@ from datetime import datetime
 import logging
 
 from controllers.reader_controller import ReaderController
+from controllers.book_controller import BookController
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class DashboardView(ttk.Frame):
         super().__init__(parent)
         self.navigate_callback = navigate_callback
         self.reader_controller = ReaderController()
+        self.book_controller = BookController()  # ✅ THÊM DÒNG NÀY
 
         # Statistics variables
         self.stats_labels = {}
@@ -90,7 +92,7 @@ class DashboardView(ttk.Frame):
                 "title": "Sách",
                 "value": "0",
                 "color": "#2196F3",
-                "subtext": "Tổng số sách"
+                "subtext": "Tổng số đầu sách"
             },
             {
                 "key": "borrowing",
@@ -98,7 +100,7 @@ class DashboardView(ttk.Frame):
                 "title": "Đang mượn",
                 "value": "0",
                 "color": "#FF9800",
-                "subtext": "Phiếu mượn"
+                "subtext": "Cuốn sách"
             },
             {
                 "key": "expired",
@@ -120,8 +122,15 @@ class DashboardView(ttk.Frame):
         parent.columnconfigure(column, weight=1)
 
         # Click to navigate
-        if data['key'] == 'readers':
-            card.bind('<Button-1>', lambda e: self.navigate_callback(1))
+        nav_map = {
+            'readers': 1,
+            'books': 2,
+            'borrowing': 3
+        }
+
+        if data['key'] in nav_map:
+            tab_index = nav_map[data['key']]
+            card.bind('<Button-1>', lambda e: self.navigate_callback(tab_index))
             card.config(cursor='hand2')
 
         # Icon
@@ -132,8 +141,9 @@ class DashboardView(ttk.Frame):
             bg='white'
         )
         icon_label.pack(pady=(15, 5))
-        if data['key'] == 'readers':
-            icon_label.bind('<Button-1>', lambda e: self.navigate_callback(1))
+        if data['key'] in nav_map:
+            tab_index = nav_map[data['key']]
+            icon_label.bind('<Button-1>', lambda e: self.navigate_callback(tab_index))
             icon_label.config(cursor='hand2')
 
         # Value - Store reference
@@ -146,8 +156,9 @@ class DashboardView(ttk.Frame):
         )
         value_label.pack()
         self.stats_labels[f"{data['key']}_value"] = value_label
-        if data['key'] == 'readers':
-            value_label.bind('<Button-1>', lambda e: self.navigate_callback(1))
+        if data['key'] in nav_map:
+            tab_index = nav_map[data['key']]
+            value_label.bind('<Button-1>', lambda e: self.navigate_callback(tab_index))
             value_label.config(cursor='hand2')
 
         # Title
@@ -159,8 +170,9 @@ class DashboardView(ttk.Frame):
             bg='white'
         )
         title_label.pack(pady=(5, 0))
-        if data['key'] == 'readers':
-            title_label.bind('<Button-1>', lambda e: self.navigate_callback(1))
+        if data['key'] in nav_map:
+            tab_index = nav_map[data['key']]
+            title_label.bind('<Button-1>', lambda e: self.navigate_callback(tab_index))
             title_label.config(cursor='hand2')
 
         # Subtext - Store reference
@@ -173,12 +185,13 @@ class DashboardView(ttk.Frame):
         )
         subtext_label.pack(pady=(0, 15))
         self.stats_labels[f"{data['key']}_subtext"] = subtext_label
-        if data['key'] == 'readers':
-            subtext_label.bind('<Button-1>', lambda e: self.navigate_callback(1))
+        if data['key'] in nav_map:
+            tab_index = nav_map[data['key']]
+            subtext_label.bind('<Button-1>', lambda e: self.navigate_callback(tab_index))
             subtext_label.config(cursor='hand2')
 
-        # Hover effect for readers card
-        if data['key'] == 'readers':
+        # Hover effect
+        if data['key'] in nav_map:
             def on_enter(e):
                 card.config(bg='#f0f0f0')
                 icon_label.config(bg='#f0f0f0')
@@ -306,10 +319,9 @@ class DashboardView(ttk.Frame):
     def _load_statistics(self):
         """Load dữ liệu thống kê từ database"""
         try:
-            # Lấy thống kê bạn đọc
+            # ✅ Lấy thống kê bạn đọc
             reader_stats = self.reader_controller.get_statistics()
 
-            # Cập nhật số liệu
             total_readers = reader_stats.get('total', 0)
             active_readers = reader_stats.get('active', 0)
             expiring_soon = reader_stats.get('expiring_soon', 0)
@@ -325,14 +337,28 @@ class DashboardView(ttk.Frame):
             # Update expired card
             if 'expired_value' in self.stats_labels:
                 self.stats_labels['expired_value'].config(text=str(expiring_soon))
-            if 'expired_subtext' in self.stats_labels:
-                self.stats_labels['expired_subtext'].config(
-                    text=f"Trong 30 ngày tới"
+
+            # ✅ Lấy thống kê sách
+            book_stats = self.book_controller.get_statistics()
+
+            total_books = book_stats.get('total_books', 0)
+            borrowed_qty = book_stats.get('borrowed_quantity', 0)
+
+            # Update books card
+            if 'books_value' in self.stats_labels:
+                self.stats_labels['books_value'].config(text=str(total_books))
+            if 'books_subtext' in self.stats_labels:
+                self.stats_labels['books_subtext'].config(
+                    text=f"{total_books} đầu sách"
                 )
 
-            # TODO: Cập nhật sách và mượn sách khi có controller
-            # book_stats = self.book_controller.get_statistics()
-            # self.stats_labels['books_value'].config(text=str(book_stats['total']))
+            # Update borrowing card
+            if 'borrowing_value' in self.stats_labels:
+                self.stats_labels['borrowing_value'].config(text=str(borrowed_qty))
+            if 'borrowing_subtext' in self.stats_labels:
+                self.stats_labels['borrowing_subtext'].config(
+                    text=f"{borrowed_qty} cuốn đang mượn"
+                )
 
             logger.info("✅ Đã cập nhật thống kê Dashboard")
 

@@ -590,143 +590,229 @@ class BookView(ttk.Frame):
 
         dialog = tk.Toplevel(self)
         dialog.title("📊 Thống kê sách")
-        dialog.geometry("750x650")
-        dialog.resizable(True, True)
+        dialog.geometry("620x600")
+        dialog.resizable(False, False)
         dialog.transient(self)
 
-        main_frame = ttk.Frame(dialog)
-        main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        # Header
+        header = ttk.Frame(dialog)
+        header.pack(fill='x', padx=20, pady=(20, 0))
 
         ttk.Label(
-            main_frame,
+            header,
             text="📊 THỐNG KÊ SÁCH",
             font=('Arial', 18, 'bold'),
             foreground='#1976D2'
-        ).pack(pady=(0, 25))
+        ).pack()
 
-        canvas = tk.Canvas(main_frame, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(main_frame, orient='vertical', command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
+        # ✅ SCROLLABLE CONTENT
+        # Main container với scrollbar
+        container = ttk.Frame(dialog)
+        container.pack(fill='both', expand=True, padx=20, pady=20)
 
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        # Canvas cho scrolling
+        canvas = tk.Canvas(container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient='vertical', command=canvas.yview)
+
+        # Frame chứa nội dung
+        content_frame = ttk.Frame(canvas)
+
+        # Bind để cập nhật scroll region
+        content_frame.bind(
+            '<Configure>',
+            lambda e: canvas.configure(scrollregion=canvas.bbox('all'))
         )
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor='nw')
+        # Tạo window trong canvas
+        canvas.create_window((0, 0), window=content_frame, anchor='nw')
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # TỔNG QUAN
+        # ========== TỔNG QUAN ==========
         overview_frame = ttk.LabelFrame(
-            scrollable_frame,
+            content_frame,
             text="📈 Tổng quan",
-            padding=20
+            padding=15
         )
-        overview_frame.pack(fill='x', pady=10)
+        overview_frame.pack(fill='x', pady=(0, 10))
 
         overview_text = f"""
-📚 Tổng số đầu sách: {stats.get('total_books', 0):,} đầu
-📦 Tổng số lượng: {stats.get('total_quantity', 0):,} cuốn
-✅ Số lượng còn: {stats.get('available_quantity', 0):,} cuốn
-📤 Đang cho mượn: {stats.get('borrowed_quantity', 0):,} cuốn
-"""
+    📚 Tổng số đầu sách: {stats.get('total_books', 0):,} đầu
+    📦 Tổng số lượng: {stats.get('total_quantity', 0):,} cuốn
+    ✅ Số lượng còn: {stats.get('available_quantity', 0):,} cuốn
+    📤 Đang cho mượn: {stats.get('borrowed_quantity', 0):,} cuốn
+    """
         ttk.Label(
             overview_frame,
             text=overview_text,
-            font=('Arial', 11),
+            font=('Arial', 10),
             justify='left'
         ).pack(anchor='w')
 
-        # TỒN KHO
+        # ========== TỒN KHO ==========
         stock_frame = ttk.LabelFrame(
-            scrollable_frame,
+            content_frame,
             text="📦 Tình trạng tồn kho",
-            padding=20
+            padding=15
         )
-        stock_frame.pack(fill='x', pady=10)
+        stock_frame.pack(fill='x', pady=(0, 10))
+
+        total_books = stats.get('total_books', 0)
+        out = stats.get('out_of_stock', 0)
+        low = stats.get('low_stock', 0)
+        good = max(0, total_books - out - low)
 
         stock_text = f"""
-❌ Hết hàng: {stats.get('out_of_stock', 0)} đầu sách
-⚠️ Sắp hết (< 5 cuốn): {stats.get('low_stock', 0)} đầu sách
-✅ Còn hàng: {stats.get('total_books', 0) - stats.get('out_of_stock', 0) - stats.get('low_stock', 0)} đầu sách
-"""
+    ✅ Còn hàng: {good} đầu sách
+    ⚠️ Sắp hết (< 5 cuốn): {low} đầu sách
+    ❌ Hết hàng: {out} đầu sách
+    """
         ttk.Label(
             stock_frame,
             text=stock_text,
-            font=('Arial', 11),
+            font=('Arial', 10),
             justify='left'
         ).pack(anchor='w')
 
-        chart_canvas = tk.Canvas(stock_frame, height=120, bg='white', highlightthickness=1,
-                                 highlightbackground='#ddd')
-        chart_canvas.pack(fill='x', pady=(10, 0))
+        # Biểu đồ
+        chart_canvas = tk.Canvas(
+            stock_frame,
+            width=530,
+            height=160,
+            bg='white',
+            highlightthickness=1,
+            highlightbackground='#CCCCCC'
+        )
+        chart_canvas.pack(pady=(10, 0))
 
-        total_books = stats.get('total_books', 1) or 1
-        out = stats.get('out_of_stock', 0)
-        low = stats.get('low_stock', 0)
-        good = total_books - out - low
+        # Dữ liệu cho biểu đồ
+        data = [
+            (good, '#4CAF50', 'Còn hàng', f'({good})'),
+            (low, '#FF9800', 'Sắp hết', f'({low})'),
+            (out, '#F44336', 'Hết hàng', f'({out})')
+        ]
 
-        colors = {'good': '#4CAF50', 'low': '#FF9800', 'out': '#F44336'}
-        labels = {'good': f'Còn hàng ({good})', 'low': f'Sắp hết ({low})', 'out': f'Hết hàng ({out})'}
+        # Layout cố định
+        bar_width = 140
+        spacing = 25
+        x_start = 35
 
-        x = 50
-        max_width = 600
-        for key, color in colors.items():
-            count = good if key == 'good' else (low if key == 'low' else out)
-            width = (count / total_books) * max_width if total_books > 0 else 0
+        max_bar_height = 70
+        max_value = max(good, low, out, 1)
+        y_baseline = 100
 
-            chart_canvas.create_rectangle(x, 30, x + width, 70, fill=color, outline='')
+        # Vẽ 3 cột
+        for idx, (count, color, label, count_text) in enumerate(data):
+            x = x_start + (idx * (bar_width + spacing))
 
-            if width > 30:
-                chart_canvas.create_text(
-                    x + width / 2, 50,
-                    text=str(count),
-                    fill='white',
-                    font=('Arial', 12, 'bold')
-                )
+            if count > 0:
+                height = max(10, (count / max_value) * max_bar_height)
+            else:
+                height = 8
 
-            chart_canvas.create_text(
-                x + width / 2, 95,
-                text=labels[key],
-                font=('Arial', 9)
+            bar_color = color if count > 0 else '#E8E8E8'
+            text_color = 'white' if count > 0 else '#999999'
+
+            # Vẽ cột
+            y_top = y_baseline - height
+            chart_canvas.create_rectangle(
+                x, y_top,
+                x + bar_width, y_baseline,
+                fill=bar_color,
+                outline='#CCCCCC',
+                width=1
             )
 
-            x += max_width // 3
+            # Số lượng
+            if height >= 25:
+                chart_canvas.create_text(
+                    x + bar_width / 2,
+                    y_top + height / 2,
+                    text=str(count),
+                    fill=text_color,
+                    font=('Arial', 16, 'bold')
+                )
+            else:
+                chart_canvas.create_text(
+                    x + bar_width / 2,
+                    y_top - 12,
+                    text=str(count),
+                    fill=color,
+                    font=('Arial', 14, 'bold')
+                )
 
-        # DANH MỤC
-        catalog_frame = ttk.LabelFrame(
-            scrollable_frame,
-            text="📂 Danh mục",
-            padding=20
+            # Label
+            chart_canvas.create_text(
+                x + bar_width / 2,
+                y_baseline + 18,
+                text=label,
+                font=('Arial', 10, 'bold'),
+                fill='#333333'
+            )
+
+            chart_canvas.create_text(
+                x + bar_width / 2,
+                y_baseline + 35,
+                text=count_text,
+                font=('Arial', 9),
+                fill='#666666'
+            )
+
+        # Baseline
+        chart_canvas.create_line(
+            15, y_baseline,
+            515, y_baseline,
+            fill='#CCCCCC',
+            width=2
         )
-        catalog_frame.pack(fill='x', pady=10)
+
+        # ========== DANH MỤC ==========
+        catalog_frame = ttk.LabelFrame(
+            content_frame,
+            text="📂 Danh mục",
+            padding=15
+        )
+        catalog_frame.pack(fill='x', pady=(0, 10))
 
         catalog_text = f"""
-👤 Số tác giả: {stats.get('total_authors', 0):,} tác giả
-🏷️ Số thể loại: {stats.get('total_categories', 0):,} thể loại
-🏭 Số nhà xuất bản: {stats.get('total_publishers', 0):,} nhà xuất bản
-"""
+    👤 Số tác giả: {stats.get('total_authors', 0):,} tác giả
+    🏷️ Số thể loại: {stats.get('total_categories', 0):,} thể loại
+    🏭 Số nhà xuất bản: {stats.get('total_publishers', 0):,} nhà xuất bản
+    """
         ttk.Label(
             catalog_frame,
             text=catalog_text,
-            font=('Arial', 11),
+            font=('Arial', 10),
             justify='left'
         ).pack(anchor='w')
 
+        # ✅ PACK CANVAS VÀ SCROLLBAR
         canvas.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
 
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(pady=(20, 0))
+        # ✅ BIND MOUSEWHEEL cho scroll mượt
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        # Unbind khi đóng dialog
+        def _on_close():
+            canvas.unbind_all("<MouseWheel>")
+            dialog.destroy()
+
+        # ========== BUTTON ==========
+        btn_frame = ttk.Frame(dialog)
+        btn_frame.pack(fill='x', padx=20, pady=(0, 20))
 
         ttk.Button(
             btn_frame,
             text="✅ Đóng",
-            command=dialog.destroy,
-            width=25
+            command=_on_close,
+            width=20
         ).pack()
 
-        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        dialog.bind('<Escape>', lambda e: _on_close())
+        dialog.protocol("WM_DELETE_WINDOW", _on_close)
 
     def _export_json(self):
         """Xuất dữ liệu ra JSON"""

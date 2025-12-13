@@ -7,12 +7,12 @@ from models.reader import Reader, get_all_statuses
 
 
 class ReaderDialog(tk.Toplevel):
-    """Dialog thêm/sửa bạn đọc"""
+    """Dialog thêm/sửa bạn đọc với giao diện cân đối"""
 
     def __init__(self, parent, title="Bạn đọc", reader: Optional[Reader] = None):
         super().__init__(parent)
         self.title(title)
-        self.geometry("600x750")
+        self.geometry("700x800")
         self.resizable(False, False)
 
         self.reader = reader
@@ -20,7 +20,7 @@ class ReaderDialog(tk.Toplevel):
         self.is_edit_mode = reader is not None
 
         # Style configuration
-        self.configure(bg='#f0f0f0')
+        self.configure(bg='#f5f5f5')
 
         self._create_widgets()
 
@@ -41,26 +41,28 @@ class ReaderDialog(tk.Toplevel):
 
     def _create_widgets(self):
         """Tạo giao diện form"""
-        # Main container with padding
-        main_frame = ttk.Frame(self, padding=20)
-        main_frame.pack(fill='both', expand=True)
-
-        # Title
-        title_frame = ttk.Frame(main_frame)
-        title_frame.pack(fill='x', pady=(0, 20))
+        # ========== HEADER ==========
+        header_frame = tk.Frame(self, bg='#1976D2', height=80)
+        header_frame.pack(fill='x')
+        header_frame.pack_propagate(False)
 
         icon = "✏️" if self.is_edit_mode else "➕"
         title_text = f"{icon} {'CẬP NHẬT' if self.is_edit_mode else 'THÊM MỚI'} BẠN ĐỌC"
 
-        ttk.Label(
-            title_frame,
+        tk.Label(
+            header_frame,
             text=title_text,
-            font=('Arial', 16, 'bold'),
-            foreground='#1976D2'
-        ).pack()
+            font=('Arial', 18, 'bold'),
+            fg='white',
+            bg='#1976D2'
+        ).pack(expand=True)
+
+        # ========== MAIN CONTENT ==========
+        main_frame = ttk.Frame(self, padding=30)
+        main_frame.pack(fill='both', expand=True)
 
         # Scrollable form frame
-        canvas = tk.Canvas(main_frame, highlightthickness=0)
+        canvas = tk.Canvas(main_frame, highlightthickness=0, bg='#f5f5f5')
         scrollbar = ttk.Scrollbar(main_frame, orient='vertical', command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
@@ -69,218 +71,354 @@ class ReaderDialog(tk.Toplevel):
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor='nw')
+        canvas.create_window((0, 0), window=scrollable_frame, anchor='nw', width=640)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # ========== FORM FIELDS ==========
+        # ========== SECTION 1: THÔNG TIN CÁ NHÂN ==========
+        section1 = self._create_section(scrollable_frame, "👤 Thông tin cá nhân")
+        section1.pack(fill='x', pady=(0, 20))
 
         # Họ tên *
-        self._create_field_label(scrollable_frame, 0, "Họ tên:", required=True)
+        self._create_field(
+            section1,
+            "Họ tên:",
+            required=True,
+            row=0
+        )
         self.full_name_var = tk.StringVar()
         self.full_name_entry = ttk.Entry(
-            scrollable_frame,
+            section1,
             textvariable=self.full_name_var,
-            width=40,
-            font=('Arial', 10)
+            font=('Arial', 10),
+            width=50
         )
-        self.full_name_entry.grid(row=0, column=1, sticky='w', pady=8, padx=(0, 10))
+        self.full_name_entry.grid(row=0, column=1, sticky='ew', pady=8, padx=(10, 0))
         self.full_name_entry.focus()
 
         # Số điện thoại
-        self._create_field_label(scrollable_frame, 1, "Số điện thoại:")
+        self._create_field(section1, "Số điện thoại:", row=1)
         self.phone_var = tk.StringVar()
-        ttk.Entry(
-            scrollable_frame,
+        phone_entry = ttk.Entry(
+            section1,
             textvariable=self.phone_var,
-            width=40,
-            font=('Arial', 10)
-        ).grid(row=1, column=1, sticky='w', pady=8, padx=(0, 10))
+            font=('Arial', 10),
+            width=50
+        )
+        phone_entry.grid(row=1, column=1, sticky='ew', pady=8, padx=(10, 0))
 
         # Email
-        self._create_field_label(scrollable_frame, 2, "Email:")
+        self._create_field(section1, "Email:", row=2)
         self.email_var = tk.StringVar()
-        ttk.Entry(
-            scrollable_frame,
+        email_entry = ttk.Entry(
+            section1,
             textvariable=self.email_var,
-            width=40,
-            font=('Arial', 10)
-        ).grid(row=2, column=1, sticky='w', pady=8, padx=(0, 10))
+            font=('Arial', 10),
+            width=50
+        )
+        email_entry.grid(row=2, column=1, sticky='ew', pady=8, padx=(10, 0))
 
         # Địa chỉ
-        self._create_field_label(scrollable_frame, 3, "Địa chỉ:")
+        self._create_field(section1, "Địa chỉ:", row=3)
+        address_frame = ttk.Frame(section1)
+        address_frame.grid(row=3, column=1, sticky='ew', pady=8, padx=(10, 0))
+
         self.address_text = tk.Text(
-            scrollable_frame,
-            width=40,
+            address_frame,
             height=3,
             font=('Arial', 10),
-            wrap='word'
+            wrap='word',
+            relief='solid',
+            borderwidth=1
         )
-        self.address_text.grid(row=3, column=1, sticky='w', pady=8, padx=(0, 10))
+        self.address_text.pack(fill='x')
 
-        # Separator
-        ttk.Separator(scrollable_frame, orient='horizontal').grid(
-            row=4, column=0, columnspan=2, sticky='ew', pady=15
-        )
+        # Configure grid weights
+        section1.columnconfigure(1, weight=1)
+
+        # ========== SECTION 2: THÔNG TIN THẺ ==========
+        section2 = self._create_section(scrollable_frame, "📇 Thông tin thẻ thư viện")
+        section2.pack(fill='x', pady=(0, 20))
 
         # Ngày cấp thẻ
-        self._create_field_label(scrollable_frame, 5, "Ngày cấp thẻ:")
-        date_frame1 = ttk.Frame(scrollable_frame)
-        date_frame1.grid(row=5, column=1, sticky='w', pady=8)
+        self._create_field(section2, "Ngày cấp thẻ:", row=0)
+        date_frame1 = ttk.Frame(section2)
+        date_frame1.grid(row=0, column=1, sticky='ew', pady=8, padx=(10, 0))
 
         self.card_start_var = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d"))
-        ttk.Entry(
+        card_start_entry = ttk.Entry(
             date_frame1,
             textvariable=self.card_start_var,
-            width=20,
-            font=('Arial', 10)
-        ).pack(side='left', padx=(0, 5))
+            font=('Arial', 10),
+            width=20
+        )
+        card_start_entry.pack(side='left', padx=(0, 10))
 
         ttk.Button(
             date_frame1,
-            text="Hôm nay",
+            text="📅 Hôm nay",
             command=lambda: self.card_start_var.set(datetime.now().strftime("%Y-%m-%d")),
-            width=10
+            width=12
         ).pack(side='left')
 
         # Ngày hết hạn
-        self._create_field_label(scrollable_frame, 6, "Ngày hết hạn:")
-        date_frame2 = ttk.Frame(scrollable_frame)
-        date_frame2.grid(row=6, column=1, sticky='w', pady=8)
+        self._create_field(section2, "Ngày hết hạn:", row=1)
+        date_frame2 = ttk.Frame(section2)
+        date_frame2.grid(row=1, column=1, sticky='ew', pady=8, padx=(10, 0))
 
         default_end = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
         self.card_end_var = tk.StringVar(value=default_end)
-        ttk.Entry(
+        card_end_entry = ttk.Entry(
             date_frame2,
             textvariable=self.card_end_var,
-            width=20,
-            font=('Arial', 10)
-        ).pack(side='left', padx=(0, 5))
+            font=('Arial', 10),
+            width=20
+        )
+        card_end_entry.pack(side='left', padx=(0, 10))
 
-        # ✅ FIX:  Nút +1 năm
         ttk.Button(
             date_frame2,
-            text="+1 năm",
+            text="➕ 1 năm",
             command=self._add_one_year_to_card_end,
-            width=10
+            width=12
         ).pack(side='left')
 
-        # Separator
-        ttk.Separator(scrollable_frame, orient='horizontal').grid(
-            row=7, column=0, columnspan=2, sticky='ew', pady=15
-        )
+        # Configure grid weights
+        section2.columnconfigure(1, weight=1)
+
+        # ========== SECTION 3: TRẠNG THÁI ==========
+        section3 = self._create_section(scrollable_frame, "⚙️ Cài đặt tài khoản")
+        section3.pack(fill='x', pady=(0, 20))
 
         # Trạng thái
-        self._create_field_label(scrollable_frame, 8, "Trạng thái:")
+        self._create_field(section3, "Trạng thái:", row=0)
+        status_frame = ttk.Frame(section3)
+        status_frame.grid(row=0, column=1, sticky='ew', pady=8, padx=(10, 0))
+
         self.status_var = tk.StringVar(value="ACTIVE")
         status_combo = ttk.Combobox(
-            scrollable_frame,
+            status_frame,
             textvariable=self.status_var,
             values=get_all_statuses(),
             state='readonly',
-            width=37,
-            font=('Arial', 10)
+            font=('Arial', 10),
+            width=20
         )
-        status_combo.grid(row=8, column=1, sticky='w', pady=8, padx=(0, 10))
+        status_combo.pack(side='left')
+
+        # Status indicator
+        self.status_label = tk.Label(
+            status_frame,
+            text="🟢 Hoạt động",
+            font=('Arial', 9),
+            fg='#4CAF50'
+        )
+        self.status_label.pack(side='left', padx=(10, 0))
+
+        # Bind status change
+        self.status_var.trace('w', self._update_status_indicator)
 
         # Điểm uy tín
-        self._create_field_label(scrollable_frame, 9, "Điểm uy tín:")
-        reputation_frame = ttk.Frame(scrollable_frame)
-        reputation_frame.grid(row=9, column=1, sticky='w', pady=8)
+        self._create_field(section3, "Điểm uy tín:", row=1)
+        reputation_frame = ttk.Frame(section3)
+        reputation_frame.grid(row=1, column=1, sticky='ew', pady=8, padx=(10, 0))
 
         self.reputation_var = tk.IntVar(value=100)
-        ttk.Spinbox(
+
+        # Spinbox
+        reputation_spin = ttk.Spinbox(
             reputation_frame,
             from_=0,
             to=100,
             textvariable=self.reputation_var,
             width=10,
             font=('Arial', 10)
-        ).pack(side='left', padx=(0, 5))
+        )
+        reputation_spin.pack(side='left', padx=(0, 5))
 
-        ttk.Label(
+        # Label
+        tk.Label(
             reputation_frame,
-            text="/100",
+            text="/ 100",
             font=('Arial', 10)
-        ).pack(side='left', padx=(0, 10))
+        ).pack(side='left', padx=(0, 15))
 
-        # Progress bar cho reputation
+        # Progress bar
         self.reputation_progress = ttk.Progressbar(
             reputation_frame,
-            length=150,
+            length=200,
             mode='determinate',
             maximum=100
         )
-        self.reputation_progress.pack(side='left')
+        self.reputation_progress.pack(side='left', fill='x', expand=True, padx=(0, 10))
         self.reputation_progress['value'] = 100
 
-        # Bind để update progress bar
+        # Reputation label
+        self.reputation_label = tk.Label(
+            reputation_frame,
+            text="⭐ Xuất sắc",
+            font=('Arial', 9, 'bold'),
+            fg='#4CAF50'
+        )
+        self.reputation_label.pack(side='left')
+
+        # Bind reputation change
         self.reputation_var.trace('w', self._update_reputation_progress)
+
+        # Configure grid weights
+        section3.columnconfigure(1, weight=1)
 
         # Pack canvas and scrollbar
         canvas.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
 
-        # ========== BUTTONS ==========
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(pady=(20, 0))
+        # ========== FOOTER BUTTONS ==========
+        footer_frame = tk.Frame(self, bg='#f5f5f5', height=80)
+        footer_frame.pack(fill='x', side='bottom')
+        footer_frame.pack_propagate(False)
 
-        ttk.Button(
-            button_frame,
-            text="💾 Lưu",
+        button_container = ttk.Frame(footer_frame)
+        button_container.place(relx=0.5, rely=0.5, anchor='center')
+
+        # Save button
+        save_btn = tk.Button(
+            button_container,
+            text="💾  Lưu",
             command=self._save,
-            width=20
-        ).pack(side='left', padx=5)
+            font=('Arial', 11, 'bold'),
+            bg='#4CAF50',
+            fg='white',
+            activebackground='#45a049',
+            activeforeground='white',
+            width=15,
+            height=2,
+            cursor='hand2',
+            relief='flat'
+        )
+        save_btn.pack(side='left', padx=10)
 
-        ttk.Button(
-            button_frame,
-            text="❌ Hủy",
-            command=self.destroy,
-            width=20
-        ).pack(side='left', padx=5)
+        # Cancel button
+        cancel_btn = tk.Button(
+            button_container,
+            text="❌  Hủy",
+            command=self._cancel,
+            font=('Arial', 11, 'bold'),
+            bg='#f44336',
+            fg='white',
+            activebackground='#da190b',
+            activeforeground='white',
+            width=15,
+            height=2,
+            cursor='hand2',
+            relief='flat'
+        )
+        cancel_btn.pack(side='left', padx=10)
 
-        # Bind Enter key
+        # Hover effects
+        self._add_button_hover(save_btn, '#4CAF50', '#45a049')
+        self._add_button_hover(cancel_btn, '#f44336', '#da190b')
+
+        # Bind keyboard shortcuts
         self.bind('<Return>', lambda e: self._save())
-        self.bind('<Escape>', lambda e: self.destroy())
+        self.bind('<Escape>', lambda e: self._cancel())
 
-    def _create_field_label(self, parent, row, text, required=False):
+    def _create_section(self, parent, title):
+        """Tạo section với tiêu đề"""
+        section_frame = tk.LabelFrame(
+            parent,
+            text=title,
+            font=('Arial', 11, 'bold'),
+            fg='#1976D2',
+            bg='white',
+            relief='groove',
+            borderwidth=2,
+            padx=20,
+            pady=15
+        )
+        return section_frame
+
+    def _create_field(self, parent, text, required=False, row=0):
         """Tạo label cho field"""
-        label_text = f"{text} {'*' if required else ''}"
-        ttk.Label(
+        label_text = f"{text}"
+        if required:
+            label_text += " *"
+
+        label = tk.Label(
             parent,
             text=label_text,
             font=('Arial', 10, 'bold' if required else 'normal'),
-            foreground='#d32f2f' if required else 'black'
-        ).grid(row=row, column=0, sticky='w', pady=8, padx=(0, 10))
+            fg='#d32f2f' if required else '#333',
+            bg='white',
+            anchor='w'
+        )
+        label.grid(row=row, column=0, sticky='w', pady=8)
+
+    def _add_button_hover(self, button, normal_color, hover_color):
+        """Thêm hover effect cho button"""
+
+        def on_enter(e):
+            button['bg'] = hover_color
+
+        def on_leave(e):
+            button['bg'] = normal_color
+
+        button.bind('<Enter>', on_enter)
+        button.bind('<Leave>', on_leave)
+
+    def _update_status_indicator(self, *args):
+        """Update status indicator"""
+        status = self.status_var.get()
+
+        status_config = {
+            'ACTIVE': ('🟢 Hoạt động', '#4CAF50'),
+            'SUSPENDED': ('🟡 Tạm khóa', '#FF9800'),
+            'EXPIRED': ('🔴 Hết hạn', '#F44336'),
+            'BANNED': ('⛔ Cấm', '#9E9E9E')
+        }
+
+        text, color = status_config.get(status, ('❓ Không xác định', '#9E9E9E'))
+        self.status_label.config(text=text, fg=color)
 
     def _update_reputation_progress(self, *args):
-        """Update progress bar khi điểm uy tín thay đổi"""
+        """Update progress bar và label khi điểm uy tín thay đổi"""
         try:
             value = self.reputation_var.get()
             self.reputation_progress['value'] = value
+
+            # Update label và color
+            if value >= 80:
+                text = "⭐ Xuất sắc"
+                color = '#4CAF50'
+            elif value >= 60:
+                text = "👍 Tốt"
+                color = '#8BC34A'
+            elif value >= 40:
+                text = "😐 Trung bình"
+                color = '#FF9800'
+            elif value >= 20:
+                text = "⚠️ Kém"
+                color = '#FF5722'
+            else:
+                text = "❌ Rất kém"
+                color = '#F44336'
+
+            self.reputation_label.config(text=text, fg=color)
         except:
             pass
 
     def _add_one_year_to_card_end(self):
-        """✅ FIX: Cộng 1 năm vào ngày hết hạn dựa trên ngày cấp thẻ"""
+        """Cộng 1 năm vào ngày hết hạn dựa trên ngày cấp thẻ"""
         try:
-            # Lấy ngày cấp thẻ
             card_start = self.card_start_var.get().strip()
 
             if not card_start:
-                # Nếu chưa có ngày cấp thẻ, dùng hôm nay
                 base_date = datetime.now()
             else:
-                # Parse ngày cấp thẻ
                 base_date = datetime.strptime(card_start, "%Y-%m-%d")
 
-            # Cộng 365 ngày
             new_end = base_date + timedelta(days=365)
-
-            # Set vào field
             self.card_end_var.set(new_end.strftime("%Y-%m-%d"))
 
         except ValueError:
-            # Nếu ngày cấp thẻ không hợp lệ, dùng hôm nay + 1 năm
             new_end = datetime.now() + timedelta(days=365)
             self.card_end_var.set(new_end.strftime("%Y-%m-%d"))
 
@@ -302,6 +440,39 @@ class ReaderDialog(tk.Toplevel):
         self.status_var.set(self.reader.status or 'ACTIVE')
         self.reputation_var.set(self.reader.reputation_score or 100)
 
+    def _cancel(self):
+        """Xử lý khi nhấn Hủy"""
+        from tkinter import messagebox
+
+        # Kiểm tra xem có thay đổi gì không
+        has_changes = False
+
+        if self.is_edit_mode and self.reader:
+            # So sánh với dữ liệu cũ
+            if (self.full_name_var.get().strip() != (self.reader.full_name or '') or
+                    self.phone_var.get().strip() != (self.reader.phone or '') or
+                    self.email_var.get().strip() != (self.reader.email or '')):
+                has_changes = True
+        else:
+            # Mode thêm mới - kiểm tra xem có nhập gì không
+            if (self.full_name_var.get().strip() or
+                    self.phone_var.get().strip() or
+                    self.email_var.get().strip() or
+                    self.address_text.get('1.0', 'end').strip()):
+                has_changes = True
+
+        if has_changes:
+            if messagebox.askyesno(
+                    "Xác nhận hủy",
+                    "Bạn có thay đổi chưa lưu.\nBạn có chắc chắn muốn hủy?",
+                    parent=self
+            ):
+                self.result = None
+                self.destroy()
+        else:
+            self.result = None
+            self.destroy()
+
     def _save(self):
         """Lưu dữ liệu"""
         # Lấy dữ liệu từ form
@@ -316,10 +487,38 @@ class ReaderDialog(tk.Toplevel):
 
         # Validate cơ bản
         if not full_name:
-            from utils.messagebox_helper import MessageBoxHelper
-            MessageBoxHelper.show_error("Lỗi", "Vui lòng nhập họ tên", parent=self)
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Lỗi",
+                "Vui lòng nhập họ tên!\n\nHọ tên là thông tin bắt buộc.",
+                parent=self
+            )
             self.full_name_entry.focus()
             return
+
+        # Validate email format (nếu có)
+        if email:
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, email):
+                from tkinter import messagebox
+                messagebox.showerror(
+                    "Lỗi",
+                    "Email không đúng định dạng!\n\nVí dụ: example@email.com",
+                    parent=self
+                )
+                return
+
+        # Validate phone (nếu có)
+        if phone:
+            if not phone.replace('+', '').replace(' ', '').replace('-', '').isdigit():
+                from tkinter import messagebox
+                messagebox.showerror(
+                    "Lỗi",
+                    "Số điện thoại không hợp lệ!\n\nChỉ được nhập số và ký tự +, -, space",
+                    parent=self
+                )
+                return
 
         # Tạo Reader object
         reader = Reader(

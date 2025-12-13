@@ -5,10 +5,14 @@ from models.reader import Reader
 from models.book import Book
 from datetime import datetime, timedelta
 
+
 class BorrowService:
 
     BORROW_DAYS = 14
 
+    # -----------------------
+    # Tạo phiếu mượn theo tên reader và sách
+    # -----------------------
     def create_borrow(self, reader_name: str, book_name: str):
         # Lấy reader theo tên
         sql_reader = "SELECT * FROM readers WHERE full_name=%s"
@@ -26,7 +30,10 @@ class BorrowService:
             return False, f"Sách '{book_name}' không tồn tại"
         book = Book.from_dict(book_data)
 
-        if book.available_quantity < 1:
+        # Kiểm tra số lượng từ book_inventory
+        sql_qty = "SELECT available_quantity FROM book_inventory WHERE book_id=%s"
+        inv_data = db.fetchone(sql_qty, (book.book_id,))
+        if not inv_data or inv_data["available_quantity"] < 1:
             return False, f"Sách '{book_name}' không đủ số lượng"
 
         # Tạo borrow slip
@@ -47,10 +54,15 @@ class BorrowService:
             quantity=1
         )
         self._insert_borrow_detail(detail)
+
+        # Giảm số lượng sách trong inventory
         self._decrease_stock(book.book_id, 1)
 
         return True, "Tạo phiếu mượn thành công"
 
+    # -----------------------
+    # Cập nhật phiếu mượn
+    # -----------------------
     def update_borrow(self, slip_id, borrow_date, return_date, status):
         sql = """
         UPDATE borrow_slips
@@ -60,23 +72,30 @@ class BorrowService:
         db.execute_query(sql, (borrow_date, return_date, status, slip_id), commit=True)
         return True, "Cập nhật phiếu thành công"
 
+    # -----------------------
+    # Trả sách
+    # -----------------------
     def return_books(self, slip_id):
         sql_slip = "SELECT * FROM borrow_slips WHERE slip_id=%s"
         slip = db.fetchone(sql_slip, (slip_id,))
         if not slip:
             return False, "Phiếu mượn không tồn tại"
 
-        # Tăng lại số lượng sách
+        # Tăng lại số lượng sách trong inventory
         sql_details = "SELECT * FROM borrow_details WHERE slip_id=%s"
         details = db.fetchall(sql_details, (slip_id,))
         for d in details:
-            sql_inc = "UPDATE books SET available_quantity = available_quantity + %s WHERE book_id=%s"
+            sql_inc = "UPDATE book_inventory SET available_quantity = available_quantity + %s WHERE book_id=%s"
             db.execute_query(sql_inc, (d["quantity"], d["book_id"]), commit=True)
 
+        # Cập nhật trạng thái phiếu
         sql_update = "UPDATE borrow_slips SET status='RETURNED', return_date=CURDATE() WHERE slip_id=%s"
         db.execute_query(sql_update, (slip_id,), commit=True)
         return True, "Trả sách thành công"
 
+    # -----------------------
+    # Lấy tất cả phiếu mượn/trả
+    # -----------------------
     def get_all_borrows(self):
         sql = """
         SELECT b.slip_id, r.full_name, bk.title AS book_name,
@@ -90,7 +109,7 @@ class BorrowService:
         return db.execute_query(sql, fetch=True)
 
     # -----------------------
-    # Các hàm nội bộ
+    # Hàm nội bộ: insert slip/detail, giảm stock
     # -----------------------
     def _insert_borrow_slip(self, slip: BorrowSlip):
         sql = """
@@ -107,5 +126,5 @@ class BorrowService:
         db.execute_query(sql, detail.to_tuple(), commit=True)
 
     def _decrease_stock(self, book_id, qty):
-        sql = "UPDATE books SET available_quantity = available_quantity - %s WHERE book_id=%s"
+        sql = "UPDATE book_inventory SET available_quantity = available_quantity - %s WHERE book_id=%s"
         db.execute_query(sql, (qty, book_id), commit=True)
